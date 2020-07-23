@@ -1,10 +1,6 @@
-# go is for pronlex
-#language: go
-#go:
-#  - "1.10"
+os: linux
+dist: bionic
 
-# java is for marytts
-#language: java
 jdk:
  - openjdk11
 
@@ -24,11 +20,7 @@ env:
  - RELEASE=master
  - RELEASE=master DO_IMPORT=1
 
-# https://blog.travis-ci.com/2017-12-12-new-trusty-images-q4-launch
-# sudo: required
-# dist: trusty
-# group: deprecated-2017Q4
- 
+
 # for marytts
 before_cache:
   - rm -f  $HOME/.gradle/caches/modules-2/modules-2.lock
@@ -73,14 +65,37 @@ script:
  - sleep 20
  - python ahotts_testcall.py "test call for ahotts"
 
+ # SYMBOLSET 
+ - cd $basedir
+ - git clone https://github.com/stts-se/symbolset
+ - cd symbolset
+ - git checkout $RELEASE || echo "No such release for symbolset. Using master."
+ - cd server
+ - git clone https://github.com/stts-se/lexdata.git
+ - cd lexdata
+ - git checkout $RELEASE || echo "No such release for lexdata. Using master."
+ - cd ..
+ - bash setup.sh lexdata ss_files
+ - go run *.go -ss_files ss_files &
+ - export symbolset_pid=$!
+ - echo "symbolset server started with pid $symbolset_pid"
+ - sleep 2
+
  # PRONLEX
+ - cd $basedir
  - mkdir -p $GOPATH/src/github.com/stts-se && cd $GOPATH/src/github.com/stts-se/
  - git clone https://github.com/stts-se/pronlex.git
  - cd pronlex
  - git checkout $RELEASE || echo "No such release for pronlex. Using master."
  - go get ./...
- - bash install/setup.sh /tmp/appdir
- - bash install/start_server.sh -a /tmp/appdir &
+ - bash scripts/setup.sh -a /tmp/appdir -e sqlite
+
+ - | 
+   if [ -v DO_IMPORT ]; then
+     bash scripts/import.sh -e sqlite -f lexdata -a /tmp/appdir -r $RELEASE
+   fi
+
+ - bash scripts/start_server.sh -a /tmp/appdir -e sqlite &
  - export pronlex_pid=$!
  - echo "pronlex started with pid $pronlex_pid"
  - sleep 20
@@ -90,32 +105,40 @@ script:
  - git clone https://github.com/stts-se/marytts.git
  - cd marytts
  - git checkout $RELEASE || echo "No such release for marytts. Using master."
+
  - ./gradlew check
- - ./gradlew assembleDist
+ - ./gradlew installDist --stacktrace
+
+ - cp stts_voices/voice-ar-nah-hsmm-5.2.jar build/install/marytts/lib/
+ - cp stts_voices/voice-dfki-spike-hsmm-5.1.jar build/install/marytts/lib/
+ - cp stts_voices/voice-stts_no_nst-hsmm-5.2.jar build/install/marytts/lib/
+ - cp stts_voices/voice-stts_sv_nst-hsmm-5.2-SNAPSHOT.jar build/install/marytts/lib/
+
+# - ./gradlew assembleDist
  - ./gradlew test
  - ./gradlew run &
  - export marytts_pid=$!
  - echo "marytts started with pid $marytts_pid"
  - sleep 20
  
- # # WIKISPEECH MINIMAL
- # - cd $basedir
- # - python3 bin/wikispeech docker/config/travis-min.conf &
- # - export wikispeech_pid=$!  
- # - echo "wikispeech started with pid $wikispeech_pid"
- # - sleep 20
- # - sh .travis/exit_server_and_fail_if_not_running.sh wikispeech $wikispeech_pid
- 
  # WIKISPEECH FULL
  - cd $basedir
- - python3 bin/wikispeech docker/config/travis.conf &
- - export wikispeech_pid=$!  
+
+ - |
+    if [ -v DO_IMPORT ]; then
+     python3 bin/wikispeech .travis/travis-full.conf &
+     export wikispeech_pid=$!
+    else
+     python3 bin/wikispeech .travis/travis-min.conf &
+     export wikispeech_pid=$!
+    fi
+
  - echo "wikispeech started with pid $wikispeech_pid"
  - sleep 20
  
- - sh .travis/exit_server_and_fail_if_not_running.sh wikispeech $wikispeech_pid
- - sh .travis/exit_server_and_fail_if_not_running.sh marytts $marytts_pid
- - sh .travis/exit_server_and_fail_if_not_running.sh pronlex $pronlex_pid
+# - sh .travis/exit_server_and_fail_if_not_running.sh wikispeech $wikispeech_pid
+# - sh .travis/exit_server_and_fail_if_not_running.sh marytts $marytts_pid
+# - sh .travis/exit_server_and_fail_if_not_running.sh pronlex $pronlex_pid
+# - sh .travis/exit_server_and_fail_if_not_running.sh pronlex $symbolset_pid
 # - sh .travis/exit_server_and_fail_if_not_running.sh ahotts $ahotts_pid
  
- - docker build . -t wikispeech

@@ -17,23 +17,40 @@ cd $basedir
 builddir="${basedir}/.build"
 mkdir -p .build
 
-for proc in `ps --sort pid -Af|egrep 'pronlex|wikispeech|marytts|tts_server|ahotts|mishkal' | egrep -v 'docker.*build' | egrep -v  "grep .E"|sed 's/  */\t/g'|cut -f2`; do
+for proc in `ps --sort pid -Af|egrep 'pronlex|wikispeech|symbolset|marytts|tts_server|ahotts|mishkal' | egrep -v "grep .E"|sed 's/  */\t/g'|cut -f2`; do
     kill $proc || echo "Couldn't kill $pid"
 done
 
 
 ## AHOTTS
+# cd $builddir
+# git clone https://github.com/Elhuyar/AhoTTS-eu-Wikispeech.git && cd AhoTTS-eu-Wikispeech || cd AhoTTS-eu-Wikispeech && git pull
+# git checkout $RELEASE || echo "No such release for ahotts. Using master."
+# if [ ! -f bin/tts_server ]; then
+#     sh script_compile_all_linux.sh && mkdir -p txt wav
+# fi
+# sh start_ahotts_wikispeech.sh &
+# export ahotts_pid=$!
+# echo "ahotts started with pid $ahotts_pid"
+# sleep 20
+# python ahotts_testcall.py "test call for ahotts"
+
+
+## SYMBOLSET
 cd $builddir
-git clone https://github.com/Elhuyar/AhoTTS-eu-Wikispeech.git && cd AhoTTS-eu-Wikispeech || cd AhoTTS-eu-Wikispeech && git pull
-git checkout $RELEASE || echo "No such release for ahotts. Using master."
-if [ ! -f bin/tts_server ]; then
-    sh script_compile_all_linux.sh && mkdir -p txt wav
-fi
-sh start_ahotts_wikispeech.sh &
-export ahotts_pid=$!
-echo "ahotts started with pid $ahotts_pid"
-sleep 20
-python ahotts_testcall.py "test call for ahotts"
+git clone https://github.com/stts-se/symbolset
+cd symbolset
+git checkout $RELEASE || echo "No such release for symbolset. Using master."
+cd server
+git clone https://github.com/stts-se/lexdata.git
+cd lexdata
+git checkout $RELEASE || echo "No such release for lexdata. Using master."
+cd ..
+bash setup.sh lexdata ss_files
+go run *.go -ss_files ss_files &
+export symbolset_pid=$!
+echo "symbolset server started with pid $symbolset_pid"
+sleep 2
 
 
 ## PRONLEX
@@ -46,9 +63,12 @@ git checkout $RELEASE || echo "No such release for pronlex. Using master."
 go get ./...
 
 rm -rf ${builddir}/appdir
-bash install/setup.sh ${builddir}/appdir
+bash scripts/setup.sh -a ${builddir}/appdir -e sqlite
 echo ${builddir}/appdir
-bash install/start_server.sh -a ${builddir}/appdir &
+
+bash scripts/import.sh -e sqlite -f lexdata -a ${builddir}/appdir -r $RELEASE
+
+bash scripts/start_server.sh -a ${builddir}/appdir -e sqlite &
 export pronlex_pid=$!
 echo "pronlex started with pid $pronlex_pid"
 sleep 20
@@ -60,8 +80,15 @@ git clone https://github.com/stts-se/marytts.git && cd marytts || cd marytts && 
 git checkout $RELEASE || echo "No such release for marytts. Using master."
  
 ./gradlew check
-./gradlew assembleDist
 ./gradlew test
+./gradlew installDist
+
+## INSTALL STTS VOICES
+cp stts_voices/voice-ar-nah-hsmm-5.2.jar build/install/marytts/lib/
+cp stts_voices/voice-dfki-spike-hsmm-5.1.jar build/install/marytts/lib/
+cp stts_voices/voice-stts_no_nst-hsmm-5.2.jar build/install/marytts/lib/
+cp stts_voices/voice-stts_sv_nst-hsmm-5.2-SNAPSHOT.jar build/install/marytts/lib/
+#./gradlew assembleDist
 ./gradlew run &
 export marytts_pid=$!
 echo "marytts started with pid $marytts_pid"
@@ -69,7 +96,8 @@ sleep 20
 
 
 ## WIKISPEECH FULL
-cd $basedir && python3 bin/wikispeech docker/config/travis.conf &
+#cd $basedir && python3 bin/wikispeech .travis/travis-min.conf &
+cd $basedir && python3 bin/wikispeech wikispeech_server/hanna-maskineri.conf &
 export wikispeech_pid=$!  
 echo "wikispeech started with pid $wikispeech_pid"
 sleep 20
@@ -79,13 +107,10 @@ sleep 20
 sh $basedir/.travis/exit_server_and_fail_if_not_running.sh wikispeech $wikispeech_pid
 sh $basedir/.travis/exit_server_and_fail_if_not_running.sh marytts $marytts_pid
 sh $basedir/.travis/exit_server_and_fail_if_not_running.sh pronlex $pronlex_pid
+sh $basedir/.travis/exit_server_and_fail_if_not_running.sh pronlex $symbolset_pid
  
 # kill ahotts
 #sh $basedir/.travis/exit_server_and_fail_if_not_running.sh ahotts $ahotts_pid
 for proc in `ps -f --sort pid|egrep 'tts_server|ahotts|python' | egrep -v  "grep .E"|sed 's/  */\t/g'|cut -f2`; do
     kill $proc || echo "Couldn't kill $pid"
 done
-
-docker build . --no-cache -t sttsse/wikispeech:buildtest --build-arg RELEASE=$RELEASE
-
-

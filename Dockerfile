@@ -30,7 +30,7 @@ ENV LC_ALL C.UTF-8
 ENV BASEDIR /wikispeech/wikispeech_server
 WORKDIR $BASEDIR
 
-# local copy of https://github.com/stts-se/wikispeech_mockup.git 
+# local copy of https://github.com/stts-se/wikispeech-server.git 
 COPY . $BASEDIR
 
 RUN mkdir -p $BASEDIR/bin
@@ -38,7 +38,7 @@ RUN mkdir -p $BASEDIR/bin
 WORKDIR $BASEDIR
 
 RUN mkdir -p $BASEDIR/wikispeech_server/tmp
-RUN ln -s $BASEDIR/docker/ws-postponed-start $BASEDIR/bin/
+#RUN ln -s $BASEDIR/docker/ws-postponed-start $BASEDIR/bin/
 
 
 ############# POST INSTALL #############
@@ -60,5 +60,5 @@ RUN chown -R wikispeech.wikispeech /wikispeech
 USER wikispeech
 EXPOSE 10000
 
-CMD python3 bin/wikispeech docker/config/docker.conf
+#CMD python3 bin/wikispeech docker/config/docker.conf
 
