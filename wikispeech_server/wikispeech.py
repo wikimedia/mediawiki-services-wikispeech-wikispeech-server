@@ -43,7 +43,7 @@ if config.config.has_option("Voice config", "config_files_location"):
 ################
 
 log.info("\nOPUSENC\n\nChecking that opusenc is installed on your system..")
-retval = os.system("opusenc -V")
+retval = os.system('opusenc -V')
 if retval != 0:
     os.system("opusenc -V")
     log.error("ERROR: opusenc was not found. You should probably run something like\nsudo apt install opus-tools\n")
@@ -122,8 +122,8 @@ def versionInfo():
         try:
             tag = subprocess.check_output(["git","describe","--tags"]).decode("utf-8").strip()
             branch = subprocess.check_output(["git", "rev-parse", "--abbrev-ref", "HEAD"]).decode("utf-8").strip()
-            print(tag)
-            print(branch)
+            log.info(tag)
+            log.info(branch)
             res.append( ("Release: %s on branch %s") % (tag, branch) )
         except:
             log.warning("couldn't retrieve git release info: %s" % sys.exc_info()[1])
@@ -187,6 +187,18 @@ def wikispeech_options2():
 @app.route('/languages', methods=["GET"])
 def list_languages():
     json_data = json.dumps(getSupportedLanguages())
+    return Response(json_data, mimetype='application/json')
+
+
+################################################################
+#
+# /default_voices
+#
+# GET:  curl "http://localhost:10000/default_voices"
+
+@app.route('/default_voices', methods=["GET"])
+def list_default_voices():
+    json_data = json.dumps(getDefaultVoices())
     return Response(json_data, mimetype='application/json')
 
 
@@ -283,10 +295,12 @@ def wikispeech():
             starttime = 0
             for token in result["tokens"]:
                 token["starttime"] = starttime
-                token["dur"] = token["endtime"]-starttime
+                #T260293
+                token["dur"] = token["endtime"]/1000-starttime
+                #token["dur"] = token["endtime"]-starttime
                 newtokens.append(token)
-                starttime = token["endtime"]
-
+                starttime = token["endtime"]/1000
+                #starttime = token["endtime"]
             
             return render_template("output.html", audio_data=result["audio_data"], tokens=newtokens)
 
@@ -304,8 +318,13 @@ def getSupportedLanguages():
             supported_languages.append(lang)
     return supported_languages
 
-
-
+def getDefaultVoices():
+    voices = []
+    for lang in getSupportedLanguages():
+        textproc = getTextprocessorByName("default_textprocessor", lang)
+        voice = getVoiceByName("default_voice", lang)
+        voices.append({"lang":lang, "default_textprocessor":textproc["name"], "default_voice":voice["name"]})
+    return voices
 
 ##############################################
 #
@@ -431,7 +450,7 @@ def textproc(lang, textprocessor_name, text, input_type="text"):
 
         if "directory" in component:
             if not os.path.isdir(component["directory"]):
-                print("ERROR: directory %s not found" % component["directory"])
+                log.fatal("directory %s not found" % component["directory"])
                 sys.exit()
             directory = component["directory"]
         else:
@@ -588,7 +607,7 @@ def synthesise(lang,voice_name,input,input_type,output_type,hostname="http://loc
     #Import the defined module and function
     if "directory" in voice:
         if not os.path.isdir(voice["directory"]):
-            print("ERROR: directory %s not found" % voice["directory"])
+            log.fatal("directory %s not found" % voice["directory"])
             sys.exit()
         directory = voice["directory"]
     else:
@@ -629,11 +648,14 @@ def synthesise(lang,voice_name,input,input_type,output_type,hostname="http://loc
     audio_url = "%s%s/%s" % (hostname, "audio", audio_file)
     log.debug("audio_url: %s" % audio_url)
 
+    #T260293 Convert seconds to milliseconds in tokens
+    output_tokens = convertTokenTimingsToMilliseconds(output_tokens)
+
 
     #T257659 Add voice to output (voice contains language, name, and other info)
     data = {
         "voice":voice,
-        "audio":audio_url,
+        #"audio":audio_url, #The sound file is no longer returned, deleted after base64 encoding
         "audio_data":audio_data,
         "tokens":output_tokens
     }
@@ -647,6 +669,14 @@ def encode_audio(wav_file):
     enc=base64.b64encode(f.read())
     f.close()
     return enc
+
+
+#T260293
+def convertTokenTimingsToMilliseconds(tokens):
+    for token in tokens:
+        token["endtime"] = int(token["endtime"]*1000)
+    return tokens
+
 
 ############################################
 #
@@ -767,7 +797,7 @@ def loadJsonConfigurationFiles():
         elif os.path.isfile("%s/%s" % (cf_dir, config_file)):
             path = "%s/%s" % (cf_dir, config_file)
         else:
-            print("Config file %s or %s not found" % (config_file, "%s/%s" % (cf_dir, config_file)))
+            log.fatal("Config file %s or %s not found" % (config_file, "%s/%s" % (cf_dir, config_file)))
             sys.exit()
         with open(path) as json_file:
             log.info("Reading config file: %s" % path)
@@ -958,6 +988,7 @@ def saveAndConvertAudio(audio_url):
         audio_data = ""
 
 
+    #Removing any remaining files in the tmpdir
     tmpfiles = glob.glob("%s/*" % tmpdir)
     for f in tmpfiles:
         os.unlink(f)
@@ -994,27 +1025,6 @@ def getParam(param,default=None):
 
 def import_module(directory, module_name):
     return util.import_module(directory, module_name)
-
-def import_moduleOLD(directory, module_name):
-    #print("Importing module '%s'" % module_name)
-
-    #HB 200218
-    #Add directory to sys.path
-    #if not directory in sys.path:
-    #    sys.path.insert(0,directory)
-    #print(sys.path)
-    #Import the module..
-    #mod = import_module(module_name)
-    #The above doesn't work in all cases..
-    
-    #HB 200218 This seems to work.. 
-    import importlib.util
-    module_file = "%s/%s.py" % (directory, re.sub("\.", "/", "%s" % (module_name)))
-    spec = importlib.util.spec_from_file_location(module_name, module_file)
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-
-    return mod
 
         
 
