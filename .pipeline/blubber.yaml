@@ -6,7 +6,7 @@ runs:
   insecurely: true
 
 lives:
-  in: /srv/wikispeech-mockup
+  in: /srv/wikispeech-server
 
 variants:
   build:

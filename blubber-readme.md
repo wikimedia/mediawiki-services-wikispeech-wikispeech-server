@@ -14,6 +14,6 @@ Wikispeech-server will spin up on three ports.
 | HAPROXY_WIKISPEECH_SERVER_FRONTEND_PORT                          | 10001          | HAProxy queued wikispeech-server port.                            |
 | HAPROXY_WIKISPEECH_SERVER_BACKEND_PORT                           | 10000          | Raw wikispeech-server port as defined in server.conf.             |
 | HAPROXY_WIKISPEECH_SERVER_BACKEND_MAXIMUM_CONCURRENT_CONNECTIONS | 4              | Number of active connections allowed on queued wikispeech-server. |
-| HAPROXY_STATS_FRONTEND_REFRESH_RATE                              | 4s             | Refreshrate on HAProxy stats available on port 10002.             |
-
+| HAPROXY_STATS_FRONTEND_PORT                                      | 10002          | HAProxy stats port.                                               |
+| HAPROXY_STATS_FRONTEND_REFRESH_RATE                              | 4s             | Refreshrate on HAProxy stats.                                     |
 

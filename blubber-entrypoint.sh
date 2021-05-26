@@ -2,7 +2,7 @@
 
 echo "Configuring HAProxy"
 
-cat > /srv/haproxy-generated.cfg <<EOF
+cat > haproxy-generated.cfg <<EOF
 global
 	daemon
 	maxconn ${HAPROXY_QUEUE_SIZE:-100}
@@ -22,14 +22,14 @@ backend backend_1
 
 frontend stats
 	mode http
-	bind *:10002
+	bind *:${HAPROXY_STATS_FRONTEND_PORT:-10002}
 	stats enable
 	stats uri /stats
 	stats refresh ${HAPROXY_STATS_FRONTEND_REFRESH_RATE:-4s}
 	stats admin if TRUE
 EOF
 echo "Starting HAProxy"
-/usr/sbin/haproxy -f /srv/haproxy-generated.cfg
+/usr/sbin/haproxy -f haproxy-generated.cfg
 
 echo "Starting Wikispeech server"
 python3 bin/wikispeech
