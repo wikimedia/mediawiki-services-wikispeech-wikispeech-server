@@ -11,7 +11,7 @@ lives:
 variants:
   build:
     apt:
-      packages: [ haproxy, python3-setuptools, ca-certificates, opus-tools, git ]
+      packages: [ haproxy, python3-setuptools, python3-pip, ca-certificates, opus-tools, git ]
     python:
         version: python3
         requirements: [ requirements.txt ]
