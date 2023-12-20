@@ -1,6 +1,6 @@
 # Server for wikispeech TTS
 
-[![Build Status](https://travis-ci.org/stts-se/wikispeech-server.svg?branch=master)](https://travis-ci.org/stts-se/wikispeech-server)
+[![Build Status](https://travis-ci.com/stts-se/wikispeech-server.svg?branch=master)](https://app.travis-ci.com/stts-se/wikispeech-server)
 
 ## Prerequisites:
 ```
@@ -152,3 +152,8 @@ google-chrome http://localhost:10000/test.html
 ```
 google-chrome http://localhost:10000/workflow_demo/test.html
 ```
+
+
+---
+
+_This work was supported by the Swedish Post and Telecom Authority (PTS) through the grant "Wikispeech – en användargenererad talsyntes på Wikipedia" (2016–2017)._
