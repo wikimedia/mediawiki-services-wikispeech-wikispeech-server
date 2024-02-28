@@ -8,5 +8,5 @@ docker rm wikispeech-server-test
 docker rmi --force wikispeech-server-test
 
 # build docker
-blubber .pipeline/blubber.yaml test | docker build --tag wikispeech-server-test --file - .
-blubber .pipeline/blubber.yaml production | docker build --tag wikispeech-server --file - .
+docker build --tag wikispeech-server-test --file .pipeline/blubber.yaml --target test .
+docker build --tag wikispeech-server --file .pipeline/blubber.yaml --target production .

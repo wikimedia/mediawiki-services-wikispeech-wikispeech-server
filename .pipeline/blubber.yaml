@@ -2,7 +2,7 @@
 
 version: v4
 
-base: docker-registry.wikimedia.org/wikimedia-buster
+base: docker-registry.wikimedia.org/python3-bookworm
 
 runs:
   insecurely: true
@@ -13,7 +13,7 @@ lives:
 variants:
   build:
     apt:
-      packages: [ haproxy, python3-setuptools, python3-pip, ca-certificates, opus-tools, git ]
+      packages: [ haproxy, ca-certificates, opus-tools, git ]
     python:
         version: python3
         requirements: [ requirements.txt ]
